@@ -46,6 +46,8 @@ namespace mtdds {
     class MtmddLoaderListener; //to load data from partial tries to the mtmdd
     class QueryListener; 
 
+    class VariableOrder;
+
     inline void visit_edge(MEDDLY::dd_edge& edge) {
         size_t nlevels = edge.getForest()->getDomain()->getNumVariables(); 
         int value; 
@@ -57,6 +59,24 @@ namespace mtdds {
             std::cout << " ==> " << value << std::endl; 
         }
     }
+
+
+    class VariableOrder {
+        // the i-th element describes the domain of the i-th variable 
+        domain_bounds_t _bounds; 
+        // the i-th element describes the desired position of the i-th variable in the order 
+        var_order_t _order; 
+    public: 
+        VariableOrder(const domain_bounds_t& bounds, const var_order_t& var_order = {});
+
+        inline domain_bounds_t& bounds() {
+            return this->_bounds; 
+        }
+
+        inline var_order_t& var_order()  {
+            return this->_order; 
+        }
+    }; 
 
     class MultiterminalDecisionDiagram {
     public:
@@ -94,8 +114,10 @@ namespace mtdds {
             MEDDLY::destroyDomain(domain); 
         }
 
-        //it initializes domain and forest given the domain bound values
-        void init(const domain_bounds_t& bounds);
+        /* it initializes the MEDDLY forest given 
+         * (i) the domain bound of each variable and 
+         * (ii) the desired variable order.  */ 
+        void init(const domain_bounds_t& bounds, const std::vector<int>& var_order = {});
 
         //it returns the mtdd's number of levels 
         inline size_t size() const {
@@ -221,6 +243,7 @@ namespace grapes2mtdds {
     inline size_t get_path_from_node(GRAPESLib::OCPTreeNode& n, std::vector<node_label_t>& vpath, const size_t max_pathlength = 0) {
         //retrieve labels from GRAPES node
         vpath.push_back(n.label + 1); 
+
         for (GRAPESLib::OCPTreeNode* p = n.parent; p; p = p->parent) 
             if (p->parent)
                 vpath.push_back(p->label + 1); 
@@ -228,10 +251,14 @@ namespace grapes2mtdds {
         size_t pathlength = vpath.size(); 
         while (vpath.size() < max_pathlength)
             vpath.insert(vpath.begin(), NOP_LABEL);  
+        
+        std::cout << "path: ";
+        for (auto x: vpath)
+            std::cout << x << " ";
+        std::cout << std::endl;
+
         return pathlength; 
     }
-
-    
 }
 
 #endif

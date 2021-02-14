@@ -43,6 +43,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace mtdds; 
 
+
+VariableOrder::VariableOrder(const domain_bounds_t& bounds, const var_order_t& var_order) {
+
+    if (var_order.size() == 0) {
+        std::cout << "Setting default variable ordering" << std::endl; 
+
+        for (int i = 0; i < bounds.size(); ++i)
+            this->_order.push_back(i);
+    }
+    else if (var_order.size() == bounds.size()) {
+        for (int i = 0; i < bounds.size(); ++i)
+            this->_bounds.at(i) = bounds.at(var_order.at(i)); 
+    }
+
+
+    std::cout << "Bounds: "; 
+    for (auto it: this->_bounds)
+        std::cout << it << " "; 
+    std::cout << "\nVariable ordering: ";
+    for (auto it: this->_order)
+        std::cout << it << " "; 
+}  
+
+
 MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const domain_bounds_t& bounds) 
 : MultiterminalDecisionDiagram() {
     init(bounds); 
@@ -122,7 +146,9 @@ MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const std::string& in
     graphNodeMapping.build_inverse_mapping(); 
 }
 
-void MultiterminalDecisionDiagram::init(const domain_bounds_t& bounds) {
+void MultiterminalDecisionDiagram::init(const domain_bounds_t& bounds, const std::vector<int>& var_order) {
+    VariableOrder v_order(bounds, var_order); 
+
     domain = MEDDLY::createDomainBottomUp(bounds.data(), bounds.size()); 
     forest = domain->createForest(
         false, MEDDLY::forest::INTEGER, MEDDLY::forest::MULTI_TERMINAL, policy

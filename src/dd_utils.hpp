@@ -61,16 +61,25 @@ namespace mtdds {
 
     //it identifies one of the indexed graphs 
     using graph_id_t = unsigned int; 
+
     //it identifies one node of a specific graph
     using node_id_t = unsigned int; 
+
     //it represent a specific node of a specific graph 
     using graph_node_t = std::pair<graph_id_t, node_id_t>; 
+
     //vector of integers used to initialize the domain of MDDs
     using domain_bounds_t = std::vector<int>;
+
+    //vector of integers used to define variable ordering to impose to MTMDD levels
+    using var_order_t = std::vector<int>; 
+
     //vector of strings used to perform path queries on MDDs 
     using label_path_t = std::vector<std::string>; 
+
     //(graph_id + node_id infos) + num_occurrences 
     using single_result_t = std::pair<graph_node_t, int>; 
+
     //vector of single query results 
     using query_result_t = std::vector<single_result_t>; 
 
