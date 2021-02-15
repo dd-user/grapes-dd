@@ -44,27 +44,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace mtdds; 
 
 
-VariableOrder::VariableOrder(const domain_bounds_t& bounds, const var_order_t& var_order) {
 
-    if (var_order.size() == 0) {
-        std::cout << "Setting default variable ordering" << std::endl; 
+VariableOrdering::VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order)
+: _bounds(bounds), _order(var_order) {
 
-        for (int i = 0; i < bounds.size(); ++i)
+
+    if (var_order.empty()) {
+        //set default variable ordering: 1, 2, 3, ... 
+        for (int i = 1; i <= bounds.size(); ++i) {
             this->_order.push_back(i);
+        }
     }
     else if (var_order.size() == bounds.size()) {
-        for (int i = 0; i < bounds.size(); ++i)
+        //set user-defined variable ordering
+        for (int i = 0; i < bounds.size(); ++i)  
             this->_bounds.at(i) = bounds.at(var_order.at(i)); 
+    } else {
+        throw std::runtime_error("Bounds and var_order arrays have different sizes.");
     }
 
-
-    std::cout << "Bounds: "; 
-    for (auto it: this->_bounds)
-        std::cout << it << " "; 
-    std::cout << "\nVariable ordering: ";
-    for (auto it: this->_order)
-        std::cout << it << " "; 
+    for (int i = 0; i < _bounds.size(); ++i)
+        std::cout << "variable #" << i << " is the " << _order.at(i) << " and has domain " << _bounds.at(i) << std::endl; 
+    
+    //build meddly domain 
+    _domain = MEDDLY::createDomainBottomUp(_bounds.data(), _bounds.size()); 
+    std::cout << "Domain initialized" << std::endl; 
 }  
+
 
 
 MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const domain_bounds_t& bounds) 
@@ -100,9 +106,15 @@ MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const std::string& in
     // std::cout << "Num labels: " << labelMap.size() << std::endl; 
     
     //initialize decision diagram's domain
+
+//////////////////////////////////////
+
     domain_bounds_t bounds(max_depth + 1, labelMap.size() + 1); 
     bounds.at(max_depth) = total_num_vertices + 1; 
+
     this->init(bounds); 
+
+///////////////////////////////////////
 
     SingleBuffer dd_buffer(buffersize, max_depth + 2, true); 
     MtmddLoaderListener mlistener(*this, dd_buffer); 
@@ -146,12 +158,14 @@ MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const std::string& in
     graphNodeMapping.build_inverse_mapping(); 
 }
 
-void MultiterminalDecisionDiagram::init(const domain_bounds_t& bounds, const std::vector<int>& var_order) {
-    VariableOrder v_order(bounds, var_order); 
+void MultiterminalDecisionDiagram::init(const domain_bounds_t& bounds, const var_order_t& var_order) {
+    this->v_order = new VariableOrdering(bounds, var_order); 
 
-    domain = MEDDLY::createDomainBottomUp(bounds.data(), bounds.size()); 
-    forest = domain->createForest(
-        false, MEDDLY::forest::INTEGER, MEDDLY::forest::MULTI_TERMINAL, policy
+    forest = this->v_order->domain()->createForest(
+        false,                              //no relation
+        MEDDLY::forest::INTEGER,            //internal nodes
+        MEDDLY::forest::MULTI_TERMINAL,     //leaf nodes 
+        policy
     );
     root = new MEDDLY::dd_edge(forest); 
 }
@@ -239,36 +253,11 @@ void MultiterminalDecisionDiagram::get_stats(MtddStats& stats) const {
     stats.num_edges = root->getEdgeCount(); 
     stats.num_graphs = num_graphs_in_db; 
     stats.num_labels = labelMapping.size();
-    stats.num_vars = domain->getNumVariables();
+    stats.num_vars = v_order->domain()->getNumVariables(); 
+    //domain->getNumVariables();
     MEDDLY::apply(MEDDLY::CARDINALITY, *root, stats.cardinality);          
 }
 
-
-void MtddListener::visit_node(GRAPESLib::OCPTreeNode&n, MultiterminalDecisionDiagram& dd) {
-    //extract path providing max path legth 
-    std::vector<node_label_t> path; 
-    grapes2mtdds::get_path_from_node(n, path, dd.size() - 1); 
-
-    //iterate over graphs which contain the current path 
-    for (auto oit = n.gsinfos.begin(); oit != n.gsinfos.end(); ++oit) {
-        //iterate over starting nodes of the current path in the current graph 
-        for (sbitset::iterator sit = oit->second.from_nodes.first_ones(); sit != oit->second.from_nodes.end(); sit.next_ones()) {
-            SingleBuffer::buffer_slot_t buffer_slot(buffer->get_slot()); 
-
-            //store labels 
-            std::copy(path.begin(), path.end(), buffer_slot.first + 1);
-            //store graph_id and node_id in a row enumerating them 
-            buffer_slot.first[dd.size()] = mapper.map(oit->first, sit.first); 
-            //store the number of occurrences
-            this->buffer->save_value(oit->second.path_occurrence); 
-
-            if (buffer_slot.second == false) {
-                dd.insert(*buffer); 
-                buffer->flush(); 
-            }
-        }
-    }
-}
 
 void MtmddLoaderListener::visit_node(GRAPESLib::OCPTreeNode& n) {
     const size_t max_pathlength = _buffer.element_size - 2; 
@@ -278,12 +267,20 @@ void MtmddLoaderListener::visit_node(GRAPESLib::OCPTreeNode& n) {
     for (auto oit = n.gsinfos.begin(); oit != n.gsinfos.end(); ++oit) {
         //iterate over starting nodes of the current path in the current graph 
         for (sbitset::iterator sit = oit->second.from_nodes.first_ones(); sit != oit->second.from_nodes.end(); sit.next_ones()) { 
+            //get the first slot in the buffer 
             SingleBuffer::buffer_slot_t buffer_slot(_buffer.get_slot()); 
-
+      
             //store labels 
-            std::copy(path.begin(), path.end(), buffer_slot.first + 1); 
+      //      std::copy(path.begin(), path.end(), buffer_slot.first + 1); 
             //store starting node 
-            buffer_slot.first[max_pathlength + 1] = _mtmdd.graphNodeMapping.map(oit->first, sit.first); 
+       //     buffer_slot.first[max_pathlength + 1] = _mtmdd.graphNodeMapping.map(oit->first, sit.first); 
+
+            _mtmdd.v_order->copy_variables(
+                path,                                                //labelled path of length L 
+                _mtmdd.graphNodeMapping.map(oit->first, sit.first),  //starting vertex of the path (encoded)
+                buffer_slot.first                                    //destination (array of length L + 1)
+            ); 
+
             //store number of occurrences of the path in the current graph 
             _buffer.save_value(oit->second.path_occurrence); 
 
@@ -329,24 +326,6 @@ void QueryListener::visit_node(GRAPESLib::OCPTreeNode& n) {
             */
         }
     }
-}
-
-void MtddOCPTree::build_mtdd(MtddListener& l, GRAPESLib::OCPTreeNode* n, MultiterminalDecisionDiagram*& mdd) {
-    if (n != NULL) {
-        l.visit_node(*n, *mdd); 
-
-        for (GRAPESLib::OCPTreeNode* c = n->first_child; c; c = c->next) {
-            build_mtdd(l, c, mdd); 
-        }
-    }
-}
-
-
-void MtddOCPTree::build_mtdd(MtddListener& l, MultiterminalDecisionDiagram*& mdd) {
-    build_mtdd(l, this->root, mdd); 
-
-    if (l.buffer->num_elements() > 0)
-        mdd->insert(*l.buffer); 
 }
 
 

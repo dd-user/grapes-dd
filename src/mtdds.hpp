@@ -41,12 +41,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 namespace mtdds {
     class MultiterminalDecisionDiagram; 
-    class MtddListener; 
-    class MtddOCPTree;
     class MtmddLoaderListener; //to load data from partial tries to the mtmdd
     class QueryListener; 
 
-    class VariableOrder;
+    class VariableOrdering;
+
 
     inline void visit_edge(MEDDLY::dd_edge& edge) {
         size_t nlevels = edge.getForest()->getDomain()->getNumVariables(); 
@@ -61,22 +60,43 @@ namespace mtdds {
     }
 
 
-    class VariableOrder {
-        // the i-th element describes the domain of the i-th variable 
+    class VariableOrdering {
+        // the i-th value is the domain of the i-th variable 
         domain_bounds_t _bounds; 
-        // the i-th element describes the desired position of the i-th variable in the order 
+        // the i-th value is the desired position of the i-th variable in the order 
         var_order_t _order; 
+
+        MEDDLY::domain *_domain = nullptr; 
     public: 
-        VariableOrder(const domain_bounds_t& bounds, const var_order_t& var_order = {});
+        VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order = {});
 
-        inline domain_bounds_t& bounds() {
-            return this->_bounds; 
-        }
+        ~VariableOrdering() { MEDDLY::destroyDomain(_domain); }
 
-        inline var_order_t& var_order()  {
-            return this->_order; 
+        inline domain_bounds_t& bounds() {  return this->_bounds; }
+
+        inline var_order_t& var_order()  {  return this->_order;  }
+
+        inline MEDDLY::domain* domain() {
+            return _domain; 
+        } 
+
+        inline void copy_variables(
+            const std::vector<node_label_t>& labelled_path, 
+            const unsigned graph_node_id,
+            int* dest) {
+
+            for (int i = labelled_path.size() - 1; i >= 0; --i)
+                dest[_order[i]] = labelled_path.at(i);
+            
+            //the starting node is saved in the mtmdd's first level by default (for now...)
+            dest[_order.back()] = graph_node_id; 
+    
+     /*
+            std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
+            dest[_domain->getNumVariables()] = graph_node_id;  */
         }
     }; 
+
 
     class MultiterminalDecisionDiagram {
     public:
@@ -86,8 +106,9 @@ namespace mtdds {
         bool direct_indexing = true; 
         size_t num_graphs_in_db = 0; 
     public: 
+        VariableOrdering *v_order = nullptr;
+
         MEDDLY::forest::policies policy; 
-        MEDDLY::domain *domain = nullptr; 
         MEDDLY::forest *forest = nullptr; 
         MEDDLY::dd_edge *root = nullptr; 
         
@@ -111,17 +132,17 @@ namespace mtdds {
         ~MultiterminalDecisionDiagram() {
             delete root; 
             MEDDLY::destroyForest(forest); 
-            MEDDLY::destroyDomain(domain); 
+            delete v_order; 
         }
 
         /* it initializes the MEDDLY forest given 
          * (i) the domain bound of each variable and 
          * (ii) the desired variable order.  */ 
-        void init(const domain_bounds_t& bounds, const std::vector<int>& var_order = {});
+        void init(const domain_bounds_t& bounds, const var_order_t& var_order = {});
 
         //it returns the mtdd's number of levels 
         inline size_t size() const {
-            return domain->getNumVariables();
+            return v_order->domain()->getNumVariables(); 
         }
 
         //it stores the values contained in the SingleBuffer structure into the current mtdd 
@@ -196,38 +217,6 @@ namespace mtdds {
         }
 
     };
-
-
-    /** Visit an OCPTreeNode and retrieved all its paths. */
-    class MtddListener : public GRAPESLib::OCPTreeVisitListener {
-    public: 
-        std::unique_ptr<SingleBuffer> buffer = nullptr; 
-        GraphNodeEncoder mapper; 
-
-        MtddListener(size_t element_size, size_t buffer_size) : GRAPESLib::OCPTreeVisitListener() {
-            buffer = std::unique_ptr<SingleBuffer>(new SingleBuffer(buffer_size, element_size)); 
-        }
-
-        ~MtddListener() {
-        }
-
-        virtual void visit_node(GRAPESLib::OCPTreeNode& n) { (void) n; } 
-        virtual void visit_leaf_node(GRAPESLib::OCPTreeNode& n) { (void) n; }
-        void visit_node(GRAPESLib::OCPTreeNode&n, MultiterminalDecisionDiagram& dd); 
-    }; 
-
-    /** Manage the entire trie structure  * */
-    class MtddOCPTree : public GRAPESLib::OCPTree { 
-
-        void build_mtdd(MtddListener& l, GRAPESLib::OCPTreeNode* n, MultiterminalDecisionDiagram*& mdd); 
-
-    public:
-        void build_mtdd(MtddListener& l, MultiterminalDecisionDiagram*& mdd); 
-
-        void visit(MtddListener& l, GRAPESLib::OCPTreeNode *n) {
-            (void) l; (void) n; 
-        }
-    }; 
 }
 
 namespace grapes2mtdds {
@@ -251,11 +240,6 @@ namespace grapes2mtdds {
         size_t pathlength = vpath.size(); 
         while (vpath.size() < max_pathlength)
             vpath.insert(vpath.begin(), NOP_LABEL);  
-        
-        std::cout << "path: ";
-        for (auto x: vpath)
-            std::cout << x << " ";
-        std::cout << std::endl;
 
         return pathlength; 
     }
