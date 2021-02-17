@@ -272,7 +272,7 @@ public:
         delete buffer; 
     }
 
-    inline void set_string(char *str) {
+    inline void set_string(const char *str) {
         strncpy(this->buffer, str, buffersize);
         this->state = false; 
     }

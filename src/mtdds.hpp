@@ -39,6 +39,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define NOP_LABEL 0 
 
 
+typedef struct {
+    std::queue<GRAPESLib::Graph> graphs_queue;
+    GRAPESLib::LabelMap labelMap;
+    unsigned total_num_vertices;  
+} GraphsDB; 
+
+
 namespace mtdds {
     class MultiterminalDecisionDiagram; 
     class MtmddLoaderListener; //to load data from partial tries to the mtmdd
@@ -72,13 +79,11 @@ namespace mtdds {
 
         ~VariableOrdering() { MEDDLY::destroyDomain(_domain); }
 
-        inline domain_bounds_t& bounds() {  return this->_bounds; }
+        inline domain_bounds_t& bounds() {  return _bounds; }
 
-        inline var_order_t& var_order()  {  return this->_order;  }
+        inline var_order_t& var_order()  {  return _order;  }
 
-        inline MEDDLY::domain* domain() {
-            return _domain; 
-        } 
+        inline MEDDLY::domain* domain() {   return _domain;  } 
 
         inline void copy_variables(
             const std::vector<node_label_t>& labelled_path, 
@@ -88,12 +93,19 @@ namespace mtdds {
             for (int i = labelled_path.size() - 1; i >= 0; --i)
                 dest[_order[i]] = labelled_path.at(i);
             
-            //the starting node is saved in the mtmdd's first level by default (for now...)
             dest[_order.back()] = graph_node_id; 
     
      /*
             std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
             dest[_domain->getNumVariables()] = graph_node_id;  */
+        }
+
+        void show() {
+            std::cout << "Bounds: "; 
+            for (auto x: _bounds)       std::cout << x << " ";
+            std::cout << "\nOrder: ";
+            for (auto x: _order)        std::cout << x << " ";
+            std::cout << std::endl;             
         }
     }; 
 
@@ -115,6 +127,8 @@ namespace mtdds {
         inline size_t num_indexed_graphs() const {
             return num_graphs_in_db; 
         }
+    private:
+        void load_from_graph_db(const GraphsDB& graphs_db);
 
     public: 
         MultiterminalDecisionDiagram() : policy(false) {
@@ -123,6 +137,8 @@ namespace mtdds {
 
 
         MultiterminalDecisionDiagram(const std::string& input_network_file, unsigned max_depth, bool direct, size_t buffersize); 
+
+        MultiterminalDecisionDiagram(const GraphsDB& graphs_db, unsigned max_depth, var_order_t& var_order);
 
 
         MultiterminalDecisionDiagram(const MultiterminalDecisionDiagram& mtdd) {/* TODO */}
@@ -135,10 +151,10 @@ namespace mtdds {
             delete v_order; 
         }
 
-        /* it initializes the MEDDLY forest given 
-         * (i) the domain bound of each variable and 
-         * (ii) the desired variable order.  */ 
+
         void init(const domain_bounds_t& bounds, const var_order_t& var_order = {});
+
+        void init(const GraphsDB& graphs_db, const unsigned max_depth, const var_order_t& var_order = {}); 
 
         //it returns the mtdd's number of levels 
         inline size_t size() const {
@@ -243,6 +259,8 @@ namespace grapes2mtdds {
 
         return pathlength; 
     }
+
+    void load_graph_db(const std::string& input_network_file, GraphsDB& graphs_db, bool direct); 
 }
 
 #endif
