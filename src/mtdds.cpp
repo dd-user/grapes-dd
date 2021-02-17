@@ -187,6 +187,8 @@ void MultiterminalDecisionDiagram::write(const std::string& out_ddfile) {
     //write n. dd levels, n. labels and n. vertices 
     fprintf(fp, "%lu %lu %lu\n", size(), labelMapping.size(), graphNodeMapping.size()); 
 
+    //write var ordering 
+    this->v_order->write(fp); 
 
     //write labels sorted by mapped value
     std::vector<std::string> labels(labelMapping.size()); 
@@ -224,10 +226,11 @@ void MultiterminalDecisionDiagram::read(const std::string& in_ddfile, const size
         exit(1); 
     }
 
-    //init DD 
-    domain_bounds_t bounds(depth, nlabels); 
-    bounds.at(bounds.size() - 1) = nvertices + 1; //vertices are (for no reason - need to change...) mapped from one, so I need to extend the domain a little bit - bugfix 26/04
-    this->init(bounds); 
+    //read variable ordering from file and init DD 
+    VariableOrdering v_order(depth);
+    v_order.read(fp); 
+
+    this->init(v_order.bounds(), v_order.var_order()); 
      
     //init label map 
     for (int i = 0; i < nlabels; ++i) {

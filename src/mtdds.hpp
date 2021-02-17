@@ -75,6 +75,11 @@ namespace mtdds {
 
         MEDDLY::domain *_domain = nullptr; 
     public: 
+        inline VariableOrdering(unsigned n_variables) {
+            _bounds.resize(n_variables); 
+            _order.resize(n_variables); 
+        }
+
         VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order = {});
 
         ~VariableOrdering() { MEDDLY::destroyDomain(_domain); }
@@ -94,10 +99,19 @@ namespace mtdds {
                 dest[_order[i]] = labelled_path.at(i);
             
             dest[_order.back()] = graph_node_id; 
-    
-     /*
-            std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
-            dest[_domain->getNumVariables()] = graph_node_id;  */
+     
+            // std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
+            // dest[_domain->getNumVariables()] = graph_node_id;  
+        }
+
+        inline void write(FILE* fp) {
+            for (int i = 0; i < _bounds.size(); ++i) 
+                fprintf(fp, "%d %d\n", _bounds.at(i), _order.at(i)); 
+        }
+
+        inline void read(FILE* fp) {
+            for (int i = 0; i < _bounds.size(); ++i) 
+                fscanf(fp, "%d %d\n", &_bounds[i], &_order[i]); 
         }
 
         void show() {
