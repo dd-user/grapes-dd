@@ -51,7 +51,6 @@ namespace mtdds {
     class MtmddLoaderListener; //to load data from partial tries to the mtmdd
     class QueryListener; 
 
-    class VariableOrdering;
 
 
     inline void visit_edge(MEDDLY::dd_edge& edge) {
@@ -65,64 +64,6 @@ namespace mtdds {
             std::cout << " ==> " << value << std::endl; 
         }
     }
-
-
-    class VariableOrdering {
-        // the i-th value is the domain of the i-th variable 
-        domain_bounds_t _bounds; 
-        // the i-th value is the desired position of the i-th variable in the order 
-        var_order_t _order; 
-
-        MEDDLY::domain *_domain = nullptr; 
-    public: 
-        inline VariableOrdering(unsigned n_variables) {
-            _bounds.resize(n_variables); 
-            _order.resize(n_variables); 
-        }
-
-        VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order = {});
-
-        ~VariableOrdering() { MEDDLY::destroyDomain(_domain); }
-
-        inline domain_bounds_t& bounds() {  return _bounds; }
-
-        inline var_order_t& var_order()  {  return _order;  }
-
-        inline MEDDLY::domain* domain() {   return _domain;  } 
-
-        inline void copy_variables(
-            const std::vector<node_label_t>& labelled_path, 
-            const unsigned graph_node_id,
-            int* dest) {
-
-            for (int i = labelled_path.size() - 1; i >= 0; --i)
-                dest[_order[i]] = labelled_path.at(i);
-            
-            dest[_order.back()] = graph_node_id; 
-     
-            // std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
-            // dest[_domain->getNumVariables()] = graph_node_id;  
-        }
-
-        inline void write(FILE* fp) {
-            for (int i = 0; i < _bounds.size(); ++i) 
-                fprintf(fp, "%d %d\n", _bounds.at(i), _order.at(i)); 
-        }
-
-        inline void read(FILE* fp) {
-            for (int i = 0; i < _bounds.size(); ++i) 
-                fscanf(fp, "%d %d\n", &_bounds[i], &_order[i]); 
-        }
-
-        void show() {
-            std::cout << "Bounds: "; 
-            for (auto x: _bounds)       std::cout << x << " ";
-            std::cout << "\nOrder: ";
-            for (auto x: _order)        std::cout << x << " ";
-            std::cout << std::endl;             
-        }
-    }; 
-
 
     class MultiterminalDecisionDiagram {
     public:

@@ -45,34 +45,6 @@ using namespace mtdds;
 
 
 
-VariableOrdering::VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order)
-: _bounds(bounds), _order(var_order) {
-
-    if (var_order.empty()) {
-//        std::cout << "Empty order?" << std::endl; 
-        //set default variable ordering: 1, 2, 3, ... 
-        for (int i = 1; i <= bounds.size(); ++i) {
-            this->_order.push_back(i);
-        }
-    }
-    else if (var_order.size() == bounds.size()) {
-//        std::cout << "Sorting variables based on the ordering" << std::endl; 
-        //set user-defined variable ordering
-        for (int i = 0; i < bounds.size(); ++i)  
-            this->_bounds.at(i) = bounds.at(var_order.at(i) - 1); 
-    } else {
-        throw std::runtime_error("Bounds and var_order arrays have different sizes.");
-    }
-
-    // for (int i = 0; i < _bounds.size(); ++i)
-    //     std::cout << "variable #" << i << " is the " << _order.at(i) << " and has domain " << _bounds.at(i) << std::endl; 
-    
-    //build meddly domain 
-    _domain = MEDDLY::createDomainBottomUp(_bounds.data(), _bounds.size()); 
- //   std::cout << "Domain initialized" << std::endl; 
-}  
-
-
 
 MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const domain_bounds_t& bounds) 
 : MultiterminalDecisionDiagram() {
