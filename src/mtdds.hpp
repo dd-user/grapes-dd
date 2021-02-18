@@ -113,7 +113,7 @@ namespace mtdds {
 
         //it returns the mtdd's number of levels 
         inline size_t size() const {
-            return v_order->domain()->getNumVariables(); 
+            return v_order->size();
         }
 
         //it stores the values contained in the SingleBuffer structure into the current mtdd 

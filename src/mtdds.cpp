@@ -264,7 +264,7 @@ void MtmddLoaderListener::visit_node(GRAPESLib::OCPTreeNode& n) {
             _mtmdd.v_order->copy_variables(
                 path,                                                //labelled path of length L 
                 _mtmdd.graphNodeMapping.map(oit->first, sit.first),  //starting vertex of the path (encoded)
-                buffer_slot.first                                    //destination (array of length L + 1)
+                1 + buffer_slot.first                                    //destination (array of length L + 1)
             ); 
 
             //store number of occurrences of the path in the current graph 
@@ -296,7 +296,7 @@ void QueryListener::visit_node(GRAPESLib::OCPTreeNode& n) {
             if (insert_in_buffer_flag) {
                 //store labels  
                 SingleBuffer::buffer_slot_t buffer_slot(buffer.push_slot(oit->second.path_occurrence)); 
-                std::copy(labelled_path.begin(), labelled_path.begin() + max_pathlength, buffer_slot.first + 1);
+                std::copy(labelled_path.begin(), labelled_path.begin() + max_pathlength, buffer_slot.first + 1); //VARFIX
                 buffer_slot.first[max_pathlength + 1] = MEDDLY::DONT_CARE; //in place of sit.first 
                 //associate buffer location to the labelled path 
                 labelled_path.assign_pointer2buffer(buffer_slot.first); 

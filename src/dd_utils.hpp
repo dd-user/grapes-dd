@@ -102,14 +102,14 @@ namespace mtdds {
         inline VariableOrdering(const domain_bounds_t& bounds, const var_order_t& var_order = {})
         : _bounds(bounds), _order(var_order) {
             if (var_order.empty()) {
-                for (int i = 1; i <= bounds.size(); ++i) {
+                for (int i = 0; i < bounds.size(); ++i) {
                     this->_order.push_back(i);
                 }
             }
             else if (var_order.size() == bounds.size()) {
                 //set user-defined variable ordering
                 for (int i = 0; i < bounds.size(); ++i)  
-                    this->_bounds.at(i) = bounds.at(var_order.at(i) - 1); 
+                    this->_bounds.at(i) = bounds.at(var_order.at(i)); 
             } else {
                 throw std::runtime_error("Bounds and var_order arrays have different sizes.");
             }
@@ -120,21 +120,35 @@ namespace mtdds {
 
         ~VariableOrdering() { MEDDLY::destroyDomain(_domain); }
 
-        inline domain_bounds_t& bounds() {  return _bounds; }
+        inline const domain_bounds_t& bounds() const {  return _bounds; }
 
-        inline var_order_t& var_order()  {  return _order;  }
+        inline const var_order_t& var_order() const {  return _order;  }
 
         inline MEDDLY::domain* domain() {   return _domain;  } 
+
+        inline size_t size() const {    return _bounds.size(); }
 
         inline void copy_variables(
             const std::vector<node_label_t>& labelled_path, 
             const unsigned graph_node_id,
             int* dest) {
 
+            // std::cout << "Initial labelled path: ";
+            // for(auto x: labelled_path)
+            //     std::cout << x << " ";
+            // std::cout << " --- node: " << graph_node_id;
+
+
             for (int i = labelled_path.size() - 1; i >= 0; --i)
                 dest[_order[i]] = labelled_path.at(i);
             
             dest[_order.back()] = graph_node_id; 
+
+
+            // std::cout << "\nCopied: ";
+            // for (int i = 0; i <= labelled_path.size(); ++i)
+            //     std::cout << dest[i] << " ";
+            // std::cout << std::endl; 
      
             // std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
             // dest[_domain->getNumVariables()] = graph_node_id;  
