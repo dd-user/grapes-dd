@@ -109,26 +109,13 @@ MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const std::string& in
     GraphsDB graphs_db;
     grapes2mtdds::load_graph_db(input_network_file, graphs_db, direct); 
 
-    //initialize decision diagram's domain
-    // domain_bounds_t bounds(max_depth + 1, graphs_db.labelMap.size() + 1); 
-    // bounds.at(max_depth) = graphs_db.total_num_vertices + 1; 
-    // this->init(bounds); 
-
     init(graphs_db, max_depth);
-//    load_from_graph_db(graphs_db); 
 }
 
 
 MultiterminalDecisionDiagram::MultiterminalDecisionDiagram(const GraphsDB& graphs_db, unsigned max_depth, var_order_t& var_order)
 : MultiterminalDecisionDiagram() {
-    //create variables' domains and impose variable order 
-    // domain_bounds_t bounds(max_depth + 1, graphs_db.labelMap.size() + 1); 
-    // bounds.at(max_depth) = graphs_db.total_num_vertices + 1; 
-    // this->init(bounds, var_order); 
-    //init mtmdd data structure given
     init(graphs_db, max_depth, var_order); 
-
-//    load_from_graph_db(graphs_db);
 }   
 
 
@@ -256,17 +243,12 @@ void MtmddLoaderListener::visit_node(GRAPESLib::OCPTreeNode& n) {
             //get the first slot in the buffer 
             SingleBuffer::buffer_slot_t buffer_slot(_buffer.get_slot()); 
       
-            //store labels 
-      //      std::copy(path.begin(), path.end(), buffer_slot.first + 1); 
-            //store starting node 
-       //     buffer_slot.first[max_pathlength + 1] = _mtmdd.graphNodeMapping.map(oit->first, sit.first); 
-
+            //store labels and starting node in the buffer slot 
             _mtmdd.v_order->copy_variables(
                 path,                                                //labelled path of length L 
                 _mtmdd.graphNodeMapping.map(oit->first, sit.first),  //starting vertex of the path (encoded)
-                1 + buffer_slot.first                                    //destination (array of length L + 1)
+                1 + buffer_slot.first                                //destination (array of length L + 1)
             ); 
-
             //store number of occurrences of the path in the current graph 
             _buffer.save_value(oit->second.path_occurrence); 
 
@@ -296,8 +278,10 @@ void QueryListener::visit_node(GRAPESLib::OCPTreeNode& n) {
             if (insert_in_buffer_flag) {
                 //store labels  
                 SingleBuffer::buffer_slot_t buffer_slot(buffer.push_slot(oit->second.path_occurrence)); 
-                std::copy(labelled_path.begin(), labelled_path.begin() + max_pathlength, buffer_slot.first + 1); //VARFIX
-                buffer_slot.first[max_pathlength + 1] = MEDDLY::DONT_CARE; //in place of sit.first 
+
+                //copy labelled path in the buffer slot, replacing starting node information with a placeholder  
+                ordering.copy_variables(labelled_path, MEDDLY::DONT_CARE, buffer_slot.first + 1);
+
                 //associate buffer location to the labelled path 
                 labelled_path.assign_pointer2buffer(buffer_slot.first); 
                 labelled_path.set_occurrence_number(oit->second.path_occurrence); 
@@ -306,10 +290,6 @@ void QueryListener::visit_node(GRAPESLib::OCPTreeNode& n) {
 
             //build query object 
             query.add_path_to_node(sit.first, labelled_path);
-            /*
-            std::cout << "Adding path starting from node #" << sit.first << " occurring " <<oit->second.path_occurrence << " times: "; 
-            labelled_path.print(); 
-            */
         }
     }
 }
@@ -321,6 +301,7 @@ std::vector<GraphMatch> MultiterminalDecisionDiagram::match(const std::string& q
     const int max_depth = size() - 1;
     //to parametrize
     const int NTHREADS = 1; 
+    const VariableOrdering& var_ordering = *v_order; 
 
     time_point start_query_indexing, start_dd_intersection, start_query_filtering; 
     time_point end_query_indexing, end_dd_intersection, end_query_filtering; 
@@ -342,7 +323,7 @@ std::vector<GraphMatch> MultiterminalDecisionDiagram::match(const std::string& q
     is.close();
 
     //2. create dd without no node info from trie 
-    QueryListener ql(max_depth + 2, true); 
+    QueryListener ql(var_ordering, max_depth + 2, true); 
     query_tree.visit(ql); 
 
     end_query_indexing = std::chrono::_V2::steady_clock::now();
@@ -367,7 +348,7 @@ std::vector<GraphMatch> MultiterminalDecisionDiagram::match(const std::string& q
 
     QueryPattern& qpattern = ql.query; 
     qpattern.assign_dd_edge(&query_dd); 
-    MatchedQuery mq(qpattern, graphNodeMapping); 
+    MatchedQuery mq(qpattern, graphNodeMapping, var_ordering); 
     mq.match(query_matched, matched_graphs); 
 
     end_query_filtering = std::chrono::_V2::steady_clock::now();

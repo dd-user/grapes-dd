@@ -130,28 +130,13 @@ namespace mtdds {
 
         inline void copy_variables(
             const std::vector<node_label_t>& labelled_path, 
-            const unsigned graph_node_id,
-            int* dest) {
-
-            // std::cout << "Initial labelled path: ";
-            // for(auto x: labelled_path)
-            //     std::cout << x << " ";
-            // std::cout << " --- node: " << graph_node_id;
-
-
+            const int graph_node_id,
+            int* dest) const {
+ 
             for (int i = labelled_path.size() - 1; i >= 0; --i)
                 dest[_order[i]] = labelled_path.at(i);
             
             dest[_order.back()] = graph_node_id; 
-
-
-            // std::cout << "\nCopied: ";
-            // for (int i = 0; i <= labelled_path.size(); ++i)
-            //     std::cout << dest[i] << " ";
-            // std::cout << std::endl; 
-     
-            // std::copy(labelled_path.begin(), labelled_path.end(), dest + 1); 
-            // dest[_domain->getNumVariables()] = graph_node_id;  
         }
 
         inline void write(FILE* fp) {

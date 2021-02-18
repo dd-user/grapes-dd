@@ -158,9 +158,10 @@ namespace mtdds {
     public: 
         SingleBuffer buffer; 
         QueryPattern query; 
-    //    Query query; 
+        const VariableOrdering& ordering; 
 
-        QueryListener(size_t elem_size, bool set_values) : buffer(elem_size, set_values), GRAPESLib::OCPTreeVisitListener() {
+        QueryListener(const VariableOrdering& var_ordering, size_t elem_size, bool set_values) 
+        : ordering(var_ordering), buffer(elem_size, set_values), GRAPESLib::OCPTreeVisitListener() {
         }
         ~QueryListener() {}
 
